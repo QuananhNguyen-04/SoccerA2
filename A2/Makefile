@@ -1,32 +1,40 @@
-# all:
-CXXFLAGS := -std=c++17 -I src/include -I include
-OBJ := main.o component1.o component2.o
+# Compiler and Flags
+CXX := g++
+CXXFLAGS := -std=c++17 -I src64/include -I include
+LDFLAGS := -L src64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf
 
-TARGET := main.exe
-LDFLAGS := -L src/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lkernel32
-
+# Source Files
 SRC := $(wildcard *.cpp)
 OBJ := $(SRC:.cpp=.o)
 
-all: 
-	$(TARGET)
+# Target Executable
+TARGET := main.exe
+
+# Build Target
+all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	g++ -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
+# Compile Object Files
 %.o: %.cpp
-	g++ $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Run Executable
 run: $(TARGET)
 	./$(TARGET)
 
+# Clean Files (Cross-platform)
 clean:
-	cmd /C del /F $(OBJ) $(TARGET)
+	rm -f $(OBJ) $(TARGET) 2>/dev/null || cmd /C del /F /Q $(OBJ) $(TARGET)
 
-rebuild: clean run
+# Rebuild
+rebuild: clean all run
 
+# Test
 test:
-	g++ -I ./Eigen -L ./Eigen  -fopenmp -o NN NN.cpp && NN
+	$(CXX) -I ./Eigen -L ./Eigen -fopenmp -o NN NN.cpp && ./NN
 
+# Sample Build
 sample:
-	g++ -std=c++17 a.cpp -o 
+	$(CXX) -std=c++17 a.cpp -o a.out && ./a.out

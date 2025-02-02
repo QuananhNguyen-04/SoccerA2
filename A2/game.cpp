@@ -179,6 +179,7 @@ int Game::run()
     }
     SDL_DestroyWindow(m_window);
     SDL_Quit();
+    return EXIT_SUCCESS;
 }
 
 void Game::draw()
