@@ -1,4 +1,6 @@
 #define SDL_MAIN_HANDLED
+
+#include <windows.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include "config.hpp"
@@ -9,6 +11,7 @@
 #include "ttf.hpp"
 #include "textures.hpp"
 #include <iostream>
+
 class Game
 {
 private:
