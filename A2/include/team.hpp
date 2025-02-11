@@ -21,13 +21,12 @@ public:
     void move_left(bool team);
     void move_right(bool team);
     void move();
-    void init_pos();
+    void init_pos(bool team);
     void score(bool team);
     void draw(SDL_Renderer* renderer);
-    void passing(bool team);
     void kicking(bool team);
-    void reset_after_timing();
-    std::vector<SDL_Rect> get_rect_list();
+    void reset_after_timing(bool team);
+    std::vector<std::pair<SDL_Rect, float>> get_rect_list();
 private:
     struct Contact {
         char key;

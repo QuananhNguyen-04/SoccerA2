@@ -7,7 +7,7 @@
 
 Ball::Ball() {}
 
-Ball::Ball(Texture *manager, SDL_Renderer *renderer) : renderer(renderer), radius(10),
+Ball::Ball(Texture *manager, SDL_Renderer *renderer) : renderer(renderer), radius(config::BALL_RADIUS),
                                                     start_pos({
                                                         config::BORDER.x + (float)config::BORDER.w / 2, 
                                                         config::BORDER.y + (float)config::BORDER.h / 2
@@ -47,43 +47,33 @@ void Ball::draw()
     drawCircle(renderer, pos.x, pos.y, radius);
 }
 
-SDL_Rect Ball::collide(const std::vector<SDL_Rect> &rect_list)
+std::pair<SDL_Rect, float> Ball::collide(const std::vector<std::pair<SDL_Rect, float>> &rect_list)
 {
-    for (const auto &rect : rect_list)
+    for (const auto &player : rect_list)
     {
 
         // Check for collision with each rectangle in rect_list
         // Implementation left out for brevity
+        auto rect = player.first;
         float closest_x = clamp(pos.x, rect.x, rect.x + rect.w);
         float closest_y = clamp(pos.y, rect.y + float(rect.h) / 2, rect.y + rect.h);
         auto distance = std::pow(closest_x - pos.x, 2) + std::pow(closest_y - pos.y, 2);
         if (distance <= std::pow(radius, 2))
         {
-            return rect;
+            return player;
         }
     }
-    return SDL_Rect{0, 0, 0, 0};
+    return {SDL_Rect{0, 0, 0, 0}, 0.0f};
 }
 
-void Ball::special(const char &key)
-{
-    if (key == 'K')
-    { // Kick
-        vx = config::KICK_SPEED;
-        vy = config::KICK_SPEED;
-    }
-    else if (key == 'P')
-    { // Pass
-        vx = config::PASS_SPEED;
-        vy = config::PASS_SPEED;
-    }
-}
-
-void Ball::move(const SDL_Rect &fieldBounds, const std::vector<SDL_Rect> &rect_list)
+void Ball::move(const SDL_Rect &fieldBounds, const std::vector<std::pair<SDL_Rect, float>> &rect_list)
 {
     printf("Ball posx: %f, posy: %f\n", pos.x, pos.y);
     float max_speed = config::BALL_SPEED;
-    auto rect = collide(rect_list);
+    auto p = collide(rect_list);
+    auto rect = p.first;
+    max_speed = (p.second > max_speed? p.second : max_speed);
+    printf("max_speed: %f", max_speed);
     if (rect.w != 0 and rect.h != 0)
     {
         printf("Collide rect");

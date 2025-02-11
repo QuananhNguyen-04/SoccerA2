@@ -10,10 +10,9 @@ public:
     Ball();
     Ball(Texture * manager, SDL_Renderer* renderer);
     void draw();
-    SDL_Rect collide(const std::vector<SDL_Rect>& rect_list);
-
+    std::pair<SDL_Rect, float> collide(const std::vector<std::pair<SDL_Rect, float>>& rect_list);
     void special(const char& key);
-    void move(const SDL_Rect& fieldBounds, const std::vector<SDL_Rect>& rect_list);
+    void move(const SDL_Rect& fieldBounds, const std::vector<std::pair<SDL_Rect, float>>& rect_list);
     bool goal_checking();
     // void direction_handling();
     int scoring();

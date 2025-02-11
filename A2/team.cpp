@@ -167,10 +167,29 @@ void Team::move()
     }
 }
 
-void Team::init_pos()
+void Team::init_pos(bool team)
 {
     // Reset positions after a goal
+    if (team) {
+        for (int i = 0; i < num; ++i) {
+            team1[i].set_pos(100, 100);
+        }
+        for (int i = 0; i < num; ++i) {
+            team2[i].set_pos(config::BORDER.w - 100, config::BORDER.h - 100);
+        }
+        current_p2->set_pos(current_p2->get_rect().x, config::BORDER.h / 2);
+    }
+    else {
+        for (int i = 0; i < num; ++i) {
+            team1[i].set_pos(100, 100);
+        }
+        for (int i = 0; i < num; ++i) {
+            team2[i].set_pos(config::BORDER.w - 100, config::BORDER.h - 100);
+        }
+        current_p1->set_pos(current_p1->get_rect().x, config::BORDER.h / 2);
+    }
 }
+
 
 void Team::draw(SDL_Renderer *renderer)
 {
@@ -184,19 +203,40 @@ void Team::draw(SDL_Renderer *renderer)
     }
 }
 
-std::vector<SDL_Rect> Team::get_rect_list()
+std::vector<std::pair<SDL_Rect, float>> Team::get_rect_list()
 {
     SDL_assert(team1.size() > 0);
     SDL_assert(team1.size() == team2.size());
     SDL_assert(team1.size() == num);
-    std::vector<SDL_Rect> rect_list(2 * num);
+    std::vector<std::pair<SDL_Rect, float>> rect_list(2 * num);
     for (int i = 0; i < num; ++i)
     {
-        rect_list[i] = team1[i].get_rect();
+        rect_list[i] = {team1[i].get_rect(), team1[i].get_kick()};
     }
     for (int i = 0; i < num; ++i)
     {
-        rect_list[i + num] = team2[i].get_rect();
+        rect_list[i + num] = {team2[i].get_rect(), team2[i].get_kick()};
     }
     return rect_list;
+}
+
+void Team::kicking(bool team) {
+    if (team) {
+        current_p1->set_kick();
+    }
+    else {
+        current_p2->set_kick();
+    }
+}
+void Team::reset_after_timing(bool team) {
+    if (team) {
+        for (int i = 0; i < num; ++i) {
+            team1[i].set_kick(true);
+        }
+    }
+    else {
+        for (int i = 0; i < num; ++i) {
+            team2[i].set_kick(true);
+        }
+    }
 }

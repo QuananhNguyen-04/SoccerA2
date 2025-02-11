@@ -6,7 +6,8 @@ bool Game::init()
         std::cerr << "SDL couldn't initialize, SDL_error: " << SDL_GetError() << std::endl;
         return EXIT_FAILURE;
     }
-    if (TTF_Init() == -1) {
+    if (TTF_Init() == -1)
+    {
         std::cerr << "SDL_ttf could not initialize! TTF_Error: " << TTF_GetError() << "\n";
         return EXIT_FAILURE;
     }
@@ -50,8 +51,8 @@ Game::Game()
     bg.draw_score();
     PlayerFactory player_factory = PlayerFactory();
 
-    teams.new_team(player_factory.create(2, true));
-    teams.new_team(player_factory.create(2, false));
+    teams.new_team(player_factory.create(config::NUM_PLAYERS_PER_TEAM, true));
+    teams.new_team(player_factory.create(config::NUM_PLAYERS_PER_TEAM, false));
     ball = Ball(&txtr_manager, m_renderer);
 }
 
@@ -60,7 +61,7 @@ int Game::run()
     bool done = false;
     SDL_Event event;
     uint32_t last_frame_time = 0, current_frame_time = 0, delta_time = 0, switch_delay = 100;
-    uint32_t last_action_1 = 0, last_action_2 = 0, last_switch_1 = 0, last_switch_2 = 0;
+    uint32_t last_action_1 = 0, last_action_2 = 0, last_switch_1 = 0, last_switch_2 = 0, kick_timing_1 = 0, kick_timing_2 = 0;
     while (!done)
     {
         while (SDL_PollEvent(&event))
@@ -70,15 +71,32 @@ int Game::run()
                 done = true;
                 break;
             }
-            else if (event.type == SDL_KEYUP) {
+            else if (event.type == SDL_KEYUP)
+            {
                 switch (event.key.keysym.scancode)
                 {
                 case SDL_SCANCODE_TAB:
                     teams.switch_player(true, ball.get_pos());
                     break;
-                case SDL_SCANCODE_BACKSLASH:
-                    std::cout<<"backslash\n";
+                case SDL_SCANCODE_P:
+                    std::cout << "swap\n";
                     teams.switch_player(false, ball.get_pos());
+                    break;
+                case SDL_SCANCODE_SPACE:
+                    if (SDL_GetTicks() - kick_timing_1 > 1000)
+                    {
+                        std::cout << "kick\n";
+                        teams.kicking(true);
+                        kick_timing_1 = SDL_GetTicks();
+                    }
+                    break;
+                case SDL_SCANCODE_O:
+                    if (SDL_GetTicks() - kick_timing_2 > 1000)
+                    {
+                        std::cout << "kick\n";
+                        teams.kicking(false);
+                        kick_timing_2 = SDL_GetTicks();
+                    }
                     break;
                 default:
                     break;
@@ -93,7 +111,7 @@ int Game::run()
                     done = true;
                     break;
                 }
-                
+
                 // case SDL_SCANCODE_W:
                 //     teams.move_up(true);
                 //     break;
@@ -159,18 +177,34 @@ int Game::run()
             }
             last_action_2 = SDL_GetTicks();
         }
+
         current_frame_time = SDL_GetTicks();
         delta_time = current_frame_time - last_frame_time;
         teams.move();
         ball.move(config::BORDER, teams.get_rect_list());
         auto result = ball.scoring();
-        if (result == 1) {
-            bg.update_score_home();
-        }
-        else if (result == 0) {
-            bg.update_score_away();
+        if (result != -1)
+        {
+            if (result == 1)
+            {
+                bg.update_score_home();
+                teams.init_pos(true);
+            }
+            else if (result == 0)
+            {
+                bg.update_score_away();
+                teams.init_pos(false);
+            }
         }
         std::cout << "=================================\n";
+        if (current_frame_time - kick_timing_1 > 500)
+        {
+            teams.reset_after_timing(true);
+        }
+        if (current_frame_time - kick_timing_2 > 500)
+        {
+            teams.reset_after_timing(false);
+        }
         if (delta_time > 1000 / config::FPS)
         {
             last_frame_time = current_frame_time;

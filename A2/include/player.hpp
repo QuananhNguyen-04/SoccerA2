@@ -16,8 +16,11 @@ public:
     void move();
     void draw(SDL_Renderer* renderer);
     bool get_team() const;
+    float get_kick() const;
+    void set_kick(bool flag = 0);
     SDL_Rect get_rect() const;
 private:
+    float kick;
     SDL_Rect field_bounds;
     float df;
     SDL_Rect rect;
