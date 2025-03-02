@@ -11,16 +11,15 @@ public:
     Background();
     Background(Texture *manager, SDL_Window *m_window,
                SDL_Renderer *m_renderer);
-    void draw();
     void draw_thick_line(SDL_Rect rect, int bold);
     void draw_score();
+    void draw(uint32_t current_time);
     void goal();
     void reset_layout();
     void update_score_home();
     void update_score_away();
     // void draw_text(std::string text, int font_size, int x, int y);
     SDL_Renderer *get_renderer();
-
 private:
     Texture *txtr_manager;
     int m_score[2];

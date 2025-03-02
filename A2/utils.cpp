@@ -16,7 +16,7 @@ void normalize_velocity(float &vx, float &vy, float max_speed)
     vx = max_speed * std::cos(alpha);
     vy = max_speed * std::sin(alpha);
     // printf("calculation %f", max_speed * std::sin(alpha));
-    printf("new vx: %f, new vy: %f\n", vx, vy);
+    // printf("new vx: %f, new vy: %f\n", vx, vy);
 }
 
 void apply_friction(float &vx, float &vy, float df)

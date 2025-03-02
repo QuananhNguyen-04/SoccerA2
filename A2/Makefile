@@ -1,11 +1,14 @@
 # Compiler and Flags
 CXX := g++
+NVCC := nvcc
 CXXFLAGS := -std=c++17 -I src64/include -I include
-LDFLAGS := -L src64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf
+NVCCFLAGS := -std=c++17 -I src64/include -I include
+LDFLAGS := -L src64/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf 
 
 # Source Files
-SRC := $(wildcard *.cpp)
-OBJ := $(SRC:.cpp=.o)
+CPP_SRC := $(wildcard *.cpp)
+CU_SRC := $(wildcard *.cu)
+OBJ := $(CPP_SRC:.cpp=.o) # $(CU_SRC:.cu=.o)
 
 # Target Executable
 TARGET := main.exe
@@ -16,9 +19,13 @@ all: $(TARGET)
 $(TARGET): $(OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-# Compile Object Files
+# Compile C++ Object Files
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile CUDA Object Files
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
 
 # Run Executable
 run: $(TARGET)

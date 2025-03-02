@@ -29,6 +29,6 @@ public:
     ~Game();
     bool init();
     int run();
-    void draw();
+    void draw(uint32_t time_frame, bool drawing);
 };
 

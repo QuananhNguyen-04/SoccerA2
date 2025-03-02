@@ -8,18 +8,17 @@
 Ball::Ball() {}
 
 Ball::Ball(Texture *manager, SDL_Renderer *renderer) : renderer(renderer), radius(config::BALL_RADIUS),
-                                                    start_pos({
-                                                        config::BORDER.x + (float)config::BORDER.w / 2, 
-                                                        config::BORDER.y + (float)config::BORDER.h / 2
-                                                        }),
-                                                    pos(start_pos),
-                                                    vx(0),
-                                                    vy(0),
-                                                    d_factor(config::BALL_DAMPING_FACTOR),
-                                                    ingoal{false, false, false},
-                                                    manager(manager)
+                                                       start_pos({config::BORDER.x + (float)config::BORDER.w / 2,
+                                                                  config::BORDER.y + (float)config::BORDER.h / 2}),
+                                                       pos(start_pos),
+                                                       vx(0),
+                                                       vy(0),
+                                                       d_factor(config::BALL_DAMPING_FACTOR),
+                                                       ingoal{false, false, false},
+                                                       manager(manager)
 {
-    printf("ball pos, posx: %f, posy: %f\n", pos.x, pos.y);
+    // printf("ball pos, posx: %f, posy: %f\n", pos.x, pos.y);
+    current_sprite = 0;
 }
 
 void drawCircle(SDL_Renderer *renderer, int x, int y, int radius)
@@ -40,11 +39,27 @@ void drawCircle(SDL_Renderer *renderer, int x, int y, int radius)
     }
     SDL_RenderDrawPoints(renderer, points.data(), points.size());
 }
-void Ball::draw()
+void Ball::draw(bool change)
 {
-    printf("draw ball pos, posx: %f, posy: %f\n", pos.x, pos.y);
-    SDL_SetRenderDrawColor(renderer, config::WHITE.r, config::WHITE.g, config::WHITE.b, 255);
-    drawCircle(renderer, pos.x, pos.y, radius);
+
+    int ball_sprite_index = static_cast<int>(TextureType::BALL_RIGHT1);
+
+    if (change)
+    {
+        if (vx > 0.001 or vy > 0.001)
+            current_sprite += 1;
+        else if (vx < -0.001 or vy < -0.001)
+        {
+            current_sprite += 5;
+        }
+        current_sprite %= 4;
+    }
+    auto txtr = manager->get_texture(static_cast<TextureType>(ball_sprite_index + current_sprite));
+
+    SDL_Rect dstrect = {static_cast<int>(pos.x - radius), static_cast<int>(pos.y - radius), static_cast<int>(2 * radius), static_cast<int>(2 * radius)};
+    SDL_RenderCopy(renderer, txtr, NULL, &dstrect);
+    // SDL_SetRenderDrawColor(renderer, config::WHITE.r, config::WHITE.g, config::WHITE.b, 255);
+    // drawCircle(renderer, pos.x, pos.y, radius);
 }
 
 std::pair<SDL_Rect, float> Ball::collide(const std::vector<std::pair<SDL_Rect, float>> &rect_list)
@@ -55,8 +70,8 @@ std::pair<SDL_Rect, float> Ball::collide(const std::vector<std::pair<SDL_Rect, f
         // Check for collision with each rectangle in rect_list
         // Implementation left out for brevity
         auto rect = player.first;
-        float closest_x = clamp(pos.x, rect.x, rect.x + rect.w);
-        float closest_y = clamp(pos.y, rect.y + float(rect.h) / 2, rect.y + rect.h);
+        float closest_x = clamp(pos.x, rect.x + float(rect.w) * 0.1, rect.x + rect.w * 0.9);
+        float closest_y = clamp(pos.y, rect.y + float(rect.h) * 0.4, rect.y + rect.h);
         auto distance = std::pow(closest_x - pos.x, 2) + std::pow(closest_y - pos.y, 2);
         if (distance <= std::pow(radius, 2))
         {
@@ -68,15 +83,15 @@ std::pair<SDL_Rect, float> Ball::collide(const std::vector<std::pair<SDL_Rect, f
 
 void Ball::move(const SDL_Rect &fieldBounds, const std::vector<std::pair<SDL_Rect, float>> &rect_list)
 {
-    printf("Ball posx: %f, posy: %f\n", pos.x, pos.y);
+    // printf("Ball posx: %f, posy: %f\n", pos.x, pos.y);
     float max_speed = config::BALL_SPEED;
     auto p = collide(rect_list);
     auto rect = p.first;
-    max_speed = (p.second > max_speed? p.second : max_speed);
-    printf("max_speed: %f", max_speed);
+    max_speed = (p.second > max_speed ? p.second : max_speed);
+    // printf("max_speed: %f", max_speed);
     if (rect.w != 0 and rect.h != 0)
     {
-        printf("Collide rect");
+        // printf("Collide rect");
         float closest_x = clamp(float(pos.x), float(rect.x), float(rect.x + rect.w));
         float closest_y = clamp(float(pos.y), float(rect.y) + float(rect.h) / 2, rect.y + float(rect.h));
         // printf("Closest point x: %f, y: %f\n", closest_x, closest_y);
@@ -127,7 +142,7 @@ void Ball::move(const SDL_Rect &fieldBounds, const std::vector<std::pair<SDL_Rec
 
 bool Ball::goal_checking()
 {
-    std::cout << "Goal Checking\n";
+
     // Check for goals and update the ball position accordingly
     if (pos.y > config::GOAL_TOP_Y and pos.y < config::GOAL_BOTTOM_Y)
     {
@@ -147,8 +162,8 @@ bool Ball::goal_checking()
 
 int Ball::scoring()
 {
-    printf("Ball posx: %f, posy: %f\n", pos.x, pos.y);
-    printf("Scoring");
+    // printf("Ball posx: %f, posy: %f\n", pos.x, pos.y);
+    // printf("Scoring");
     // Check if the ball is in goal area, reset ball and return scoring team
     if (ingoal[0])
     {
