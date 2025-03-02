@@ -2,7 +2,7 @@
 
 // Constructor: Initializes layers and calls initialization functions
 NeuralNetwork::NeuralNetwork(const std::vector<int> &layers, std::string activator)
-    : beta1(0.9), beta2(0.999), epsilon(1e-10), learning_rate(0.001), t(0), activator(activator)
+    : beta1(0.9), beta2(0.999), epsilon(1e-10), learning_rate(0.0003), t(0), activator(activator)
 {
 
     if (layers.size() < 2)
@@ -14,30 +14,36 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &layers, std::string activat
     initializeAdam();
 }
 
-double NeuralNetwork::activationFunction(double x) const {
-    if (activator == "sigmoid") {
+double NeuralNetwork::activationFunction(double x) const
+{
+    if (activator == "sigmoid")
+    {
         return sigmoid(x);
     }
-    if (activator == "tanh") {
+    if (activator == "tanh")
+    {
         return tanh(x);
     }
-    if (activator == "relu") {
+    if (activator == "relu")
+    {
         return relu(x);
     }
 }
 
 double NeuralNetwork::activationDer(double x) const
 {
-    if (activator == "sigmoid") {
+    if (activator == "sigmoid")
+    {
         return sigmoidDerivative(x);
     }
-    if (activator == "tanh") {
+    if (activator == "tanh")
+    {
         return tanhDerivative(x);
     }
-    if (activator == "relu") {
+    if (activator == "relu")
+    {
         return reluDerivative(x);
     }
-
 }
 
 void NeuralNetwork::initializeWeights()
@@ -129,7 +135,7 @@ std::vector<std::vector<double>> NeuralNetwork::forward(const std::vector<std::v
                     z[j] += weights[i][j][k] * activations[b][i][k];
                 }
                 z[j] = std::inner_product(weights[i][j].begin(), weights[i][j].end(), activations[b][i].begin(), biases[i][j]);
-            
+
                 a[j] = activationFunction(z[j]);
             }
 
@@ -224,7 +230,7 @@ void NeuralNetwork::backward(const std::vector<std::vector<double>> &inputs, con
                     grad += activations[b][i][k] * deltas[b][i + 1][j]; // Fix: Use activations[b][i][k] instead of inputs[b][k]
                 }
 
-                if (grad == 0 and i != 0)
+                if ((abs(grad) < 1e-6 or abs(grad) > 1e6) and i != 0)
                 {
                     count++;
                     alert = true;
@@ -385,7 +391,7 @@ double NeuralNetwork::sigmoidDerivative(double x) const
 }
 
 Agent::Agent(const std::vector<int> &layers, const std::vector<int> &vlayers, double gamma, double lambda)
-    : policyNetwork(layers, "sigmoid"), valueNetwork(vlayers, "tanh"), gamma(gamma), lambda(lambda), time_step(0), epsilon(0.999)
+    : policyNetwork(layers, "sigmoid"), valueNetwork(vlayers, "tanh"), gamma(gamma), lambda(lambda), time_step(50), epsilon(0.999)
 {
 }
 
@@ -499,10 +505,12 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     size_t batch_size = states.size();
     time_step++;
     std::cout << time_step << std::endl;
-    if (time_step > 100 && time_step % 10 == 0) // Start decay after 5000 steps
+    if (time_step > 100 && time_step % 15 == 0) // Start decay after 200 steps
     {
         epsilon = std::max(0.01, epsilon * 0.9);
         std::cout << time_step << " reduce the randomness " << epsilon << std::endl;
+        std::cout << "increase the future value " << gamma << std::endl;
+        gamma = std::min(0.8, gamma * 1.2); // Increase gamma by 0.2 times, but cap it at 0.8
     }
     // Compute value predictions
     std::vector<std::vector<double>> values_batch = valueNetwork.forward(states);
@@ -514,7 +522,7 @@ void Agent::update(const std::vector<std::vector<double>> &states,
         values[i] = values_batch[i][0];
         next_values[i] = next_values_batch[i][0];
     }
-    double advantage = computeAdvantage(rewards, values, next_values, dones);
+    double advantage = computeAdvantage(rewards, values, next_values, dones) / batch_size * 2;
     printf("advantage of GAE: %lf\n", advantage);
     // Compute Policy Loss (Negative Advantage * log probability)
     std::vector<std::vector<double>> policy_outputs = policyNetwork.forward(states);
@@ -533,6 +541,7 @@ void Agent::update(const std::vector<std::vector<double>> &states,
                 p /= sum;
                 entropy += -p * log(p + 1e-9);
             }
+            prob = policy_outputs[i][action];
         }
         else
         {
@@ -546,11 +555,15 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     }
 
     // Compute Value Loss (Mean Squared Error)
+    double target;
+    std::cout << "gamma: " << gamma << std::endl;
     std::vector<std::vector<double>> value_gradients(batch_size, std::vector<double>(1, 0.0));
     for (size_t i = 0; i < batch_size; ++i)
     {
-        value_gradients[i][0] = advantage; // TD Error
+        target = rewards[i] + gamma * next_values[i] * (1 - dones[i]);
+        value_gradients[i][0] = 2.0 * (values[i] - target);
     }
+
     // Print policy gradients for debugging
     std::cout << "Policy Gradients:" << std::endl;
     for (const auto &grad : policy_gradients)
@@ -568,6 +581,7 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     {
         for (double g : grad)
         {
+            // std::cout << "target: " << rewards[0] + std::max(std::min(gamma * next_values[0] * (1 - dones[0]), 0.5), -0.5) << " ";
             std::cout << g << " ";
         }
         std::cout << std::endl;
@@ -583,8 +597,8 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     policyNetwork.backward(states, policy_gradients);
     // std::cout << "valuation backward\n";
     valueNetwork.backward(states, value_gradients);
-    if (time_step < 30)
-    {
-        valueNetwork.backward(states, value_gradients);
-    }
+    // if (time_step < 30)
+    // {
+    //     valueNetwork.backward(states, value_gradients);
+    // }
 }

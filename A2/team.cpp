@@ -353,7 +353,7 @@ void Team::get_reward(double reward)
             rewards.push_back(reward);
         else
             rewards.push_back(-reward);
-        if (abs(reward) < 10)
+        if (abs(reward) < 1)
             dones.push_back(false);
         else
             dones.push_back(true);
@@ -362,7 +362,7 @@ void Team::get_reward(double reward)
 
 void Team::train()
 {
-    if (states.size() < 1000 * 2 * num)
+    if (states.size() < 200 * 2 * num)
         return;
     next_states.erase(next_states.end() - 2 * num, next_states.end());
     states.erase(states.begin(), states.begin() + 2 * num);
@@ -543,9 +543,9 @@ double Team::closest(SDL_FPoint ball)
     int count = 0;
     for (int i = 0; i < std::min(num - 1, 2); ++i)
     {
-        if (arr1[i] < 4000)
+        if (arr1[i] < 7000)
             count += 2;
-        if (arr2[i] < 4000)
+        if (arr2[i] < 7000)
             count -= 2;
     }
     for (int i = 0, j = 0; i + j < num;)

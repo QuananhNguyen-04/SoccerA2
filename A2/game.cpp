@@ -211,7 +211,7 @@ int Game::run()
                 last_frame_time = current_frame_time;
                 teams.move(ball.get_pos());
                 ball.move(config::BORDER, teams.get_rect_list());
-                printf("FPS: %d\n", 1000 / delta_time);
+                // printf("FPS: %d\n", 1000 / delta_time);
                 auto result = ball.scoring();
                 if (result != -1)
                 {
@@ -230,16 +230,16 @@ int Game::run()
                 }
                 else
                 {
-                    // std::cout << ball.get_pos().x << " " <<ball.get_pos().y << "\n";
-                    // std::cout << ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x) << "\n";
-                    // std::cout << abs(ball.get_pos().y - (config::GOAL_BOTTOM_Y - config::GOAL_TOP_Y) / 2 - config::GOAL_TOP_Y) << "\n";
-                    double reward = ((ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) + // 600 max
-                                     (400 - (abs(ball.get_pos().y - (config::GOAL_BOTTOM_Y - config::GOAL_TOP_Y) / 2 - config::GOAL_TOP_Y)))) *
+                    // std::cout << ball.get_pos().x << " " << ball.get_pos().y << "\n";
+                    // std::cout << (ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) << "\n";
+                    // std::cout << (400 - (abs(ball.get_pos().y - (config::GOAL_BOTTOM_Y - config::GOAL_TOP_Y) / 2 - config::GOAL_TOP_Y))) << "\n";
+                    double reward = (ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) // 600 max
+                                    *
                                     (1.0 / 950);
 
-                    reward += teams.closest(ball.get_pos()) / 20.0;
-
-                    std::cout << "reward = " << reward << std::endl;
+                    auto good_pos = teams.closest(ball.get_pos()) / 20.0;
+                    reward += good_pos;
+                    std::cout << "good pos contribute: " << good_pos << "reward: " << reward << std::endl;
                     teams.get_reward(reward);
                 }
                 std::cout << "=================================\n";

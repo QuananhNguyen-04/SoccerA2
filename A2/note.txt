@@ -1,0 +1,2 @@
+hyper-param: 4 layers, 256-64, lr = 0.0003, gamma = 0.01-0.012, eps-greedy = 0.999, 400-500 batch steps 
+each region (pattern) need 7-8 epochs to learn valuable

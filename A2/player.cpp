@@ -150,12 +150,11 @@ std::vector<Player> PlayerFactory::create(int num, bool team)
     int input = config::NUM_PLAYERS_PER_TEAM * 2 * 2 + 2; // coordination of each player and ball
     int output = 4; // moving and kick
     std::vector<Player> players;
-    std::vector<int> layers(5);
+    std::vector<int> layers(4);
     layers[0] = input;
-    layers[1] = 6 * input;
-    layers[2] = 4 * input;
-    layers[3] = 2 * output;
-    layers[4] = output;
+    layers[1] = 256;
+    layers[2] = 64;
+    layers[3] = output;
     auto vlayers = layers;
     vlayers.back() = 1;
     int padding = (config::BORDER.h - 100) / config::NUM_PLAYERS_PER_TEAM;
