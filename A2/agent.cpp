@@ -1,8 +1,8 @@
 #include "agent.hpp"
 
 // Constructor: Initializes layers and calls initialization functions
-NeuralNetwork::NeuralNetwork(const std::vector<int> &layers, std::string activator)
-    : beta1(0.9), beta2(0.999), epsilon(1e-10), learning_rate(0.0003), t(0), activator(activator)
+NeuralNetwork::NeuralNetwork(const std::vector<int> &layers, std::string activator, double lr)
+    : beta1(0.9), beta2(0.999), epsilon(1e-6), learning_rate(lr), t(0), activator(activator)
 {
 
     if (layers.size() < 2)
@@ -24,9 +24,9 @@ double NeuralNetwork::activationFunction(double x) const
     {
         return tanh(x);
     }
-    if (activator == "relu")
+    if (activator == "leaky_relu")
     {
-        return relu(x);
+        return leakyRelu(x);
     }
 }
 
@@ -40,9 +40,9 @@ double NeuralNetwork::activationDer(double x) const
     {
         return tanhDerivative(x);
     }
-    if (activator == "relu")
+    if (activator == "leaky_relu")
     {
-        return reluDerivative(x);
+        return leakyReluDerivative(x);
     }
 }
 
@@ -59,7 +59,8 @@ void NeuralNetwork::initializeWeights()
         // double std_dev = sqrt(2.0 / fan_in); // He initialization std deviation
 
         // std::normal_distribution<double> dist(0.0, std_dev); // Normal distribution
-        std::normal_distribution<double> dist(0.0, sqrt(2.0 / fan_in));
+        // std::normal_distribution<double> dist(0.0, sqrt(2.0 / double(fan_in)));
+        std::uniform_real_distribution<double> dist(-sqrt(6.0 / (fan_in + fan_out)), sqrt(6.0 / (fan_in + fan_out)));
         std::vector<std::vector<double>> layerWeights(fan_out, std::vector<double>(fan_in));
         for (int j = 0; j < fan_out; ++j)
         {
@@ -68,6 +69,7 @@ void NeuralNetwork::initializeWeights()
                 layerWeights[j][k] = dist(gen); // Sample from normal distribution
             }
         }
+
         weights.push_back(layerWeights);
     }
 }
@@ -201,7 +203,7 @@ void NeuralNetwork::backward(const std::vector<std::vector<double>> &inputs, con
                 {
                     delta[j] += deltas[b][i + 1][k] * weights[i][k][j];
                 }
-                delta[j] *= activationDer(activations[b][i][j]); // Fix: Ensure correct indexing
+                delta[j] *= (activationDer(activations[b][i][j]) + 1e-9); // Fix: Ensure correct indexing
             }
 
             // assert(delta.size() == layers[i] && "Mismatch in computed delta size!");
@@ -213,8 +215,10 @@ void NeuralNetwork::backward(const std::vector<std::vector<double>> &inputs, con
     auto beta2_t = 1 - pow(beta2, t);
     for (size_t i = 0; i < weights.size(); ++i)
     {
-        int alert = false;
-        int count = 0;
+        int alert1 = false;
+        int alert2 = false;
+        int count1 = 0;
+        int count2 = 0, count3 = 0;
         for (int j = 0; j < layers[i + 1]; ++j)
         {
             for (int k = 0; k < layers[i]; ++k)
@@ -227,16 +231,22 @@ void NeuralNetwork::backward(const std::vector<std::vector<double>> &inputs, con
                     assert(weights[i][0].size() == layers[i] && "Mismatch in weights second dimension!");
                     assert(activations[b][i].size() == layers[i] && "Mismatch in activations shape!");
                     assert(deltas[b][i + 1].size() == layers[i + 1] && "Mismatch in deltas shape!");
-                    grad += activations[b][i][k] * deltas[b][i + 1][j]; // Fix: Use activations[b][i][k] instead of inputs[b][k]
+                    grad += (activations[b][i][k] + 1e-9) * deltas[b][i + 1][j]; // Fix: Use activations[b][i][k] instead of inputs[b][k]
                 }
-
-                if ((abs(grad) < 1e-6 or abs(grad) > 1e6) and i != 0)
-                {
-                    count++;
-                    alert = true;
-                }
+                // if (abs(grad) > 1e6) {
+                //     count2++;
+                //     alert2 = true;
+                // }
                 grad /= batch_size;
-
+                if (batch_size > 0)
+                {
+                    if ((fabs(grad) < 1e-12))
+                    {
+                        count1++;
+                        alert1 = true;
+                    }
+                    // std::cout << grad << " ";
+                }
                 m[i][j][k] = beta1 * m[i][j][k] + (1 - beta1) * grad;
                 v[i][j][k] = beta2 * v[i][j][k] + (1 - beta2) * grad * grad;
                 // std::cout << "grad = " << grad << ", ";
@@ -246,14 +256,13 @@ void NeuralNetwork::backward(const std::vector<std::vector<double>> &inputs, con
                 double v_hat = v[i][j][k] / (beta2_t + 1e-8);
 
                 weights[i][j][k] -= learning_rate * m_hat / (sqrt(v_hat) + epsilon);
-                // if (abs(weights[i][j][k]) <= 1e-9) {
-                //     weights[i][j][k] = 0;
-                // }
                 // assert(abs(weights[i][j][k]) > 1e-18);
             }
         }
-        if (alert)
-            std::cerr << "Layers: " << i << " Zero gradient detected: " << count / float(layers[i + 1] * layers[i]) * 100.0 << std::endl;
+        if (alert1)
+            std::cerr << "Layers: " << i << " Zero gradient detected: " << count1 / float(layers[i + 1] * layers[i]) * 100.0 << std::endl;
+        // if (alert2)
+        //     std::cerr << "Layers: " << i << " Exploding gradient detected: " << count2 / float(layers[i + 1] * layers[i]) * 100.0 << std::endl;
     }
 }
 // Print all weights (for debugging)
@@ -391,7 +400,8 @@ double NeuralNetwork::sigmoidDerivative(double x) const
 }
 
 Agent::Agent(const std::vector<int> &layers, const std::vector<int> &vlayers, double gamma, double lambda)
-    : policyNetwork(layers, "sigmoid"), valueNetwork(vlayers, "tanh"), gamma(gamma), lambda(lambda), time_step(50), epsilon(0.999)
+    : policyNetwork(layers, "tanh", 0.05), valueNetwork(vlayers, "tanh", 0.0001),
+      gamma(config::GAMMA_RL), lambda(lambda), time_step(0), epsilon(0.99)
 {
 }
 
@@ -401,63 +411,107 @@ std::vector<int> Agent::takeAction(const std::vector<double> &input, bool on_pol
     std::vector<std::vector<double>> output = policyNetwork.forward({input});
     std::vector<double> probabilities = output[0];
     // Print probabilities for debugging
-    double sum = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
-    if (sum > 0)
+    // double sum = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
+    // std::ofstream debug_file("debug.txt", std::ios_base::app);
+
+    double max_prob = *std::max_element(probabilities.begin(), probabilities.end());
+    double sum_exp = 0.0;
+    for (double &p : probabilities)
     {
-        for (double &p : probabilities)
-            p /= sum;
+        p = exp(p - max_prob); // Subtract max_prob for numerical stability
+        sum_exp += p;
     }
+    std::cout << "Action prob: ";
+    for (double &p : probabilities)
+    {
+        p /= (sum_exp + 1e-10);
+        std::cout << p << " ";
+    }
+    std::cout << std::endl;
+    // debug_file.close();
     // Sample action based on probability distribution
     double r = static_cast<double>(rand()) / RAND_MAX;
     if (r > epsilon or on_policy)
     {
+        // for (size_t i = 0; i < probabilities.size(); ++i)
+        // {
+        //     std::cout << "Action " << i << ": " << probabilities[i] << std::endl;
+        // }
         // std::cout << "choosing by policy\n";
         auto max_it = std::max_element(probabilities.begin(), probabilities.end());
-        return {static_cast<int>(std::distance(probabilities.begin(), max_it))};
+        return {static_cast<int>(std::distance(probabilities.begin(), max_it)) % 2 + 2};
     }
     r = static_cast<double>(rand()) / RAND_MAX;
-    if (r < epsilon)
+    if (r < 0.5)
     {
         // std::cout << "choosing by randomness\n";
-        return {static_cast<int>(rand() % probabilities.size())};
+        return {static_cast<int>(rand() % probabilities.size() % 2) + 2};
     }
-
-    r = static_cast<double>(rand()) / RAND_MAX;
-    double cumulative = 0.0;
-    // std::cout << "choosing by policy with randomness\n";
-    for (size_t i = 0; i < probabilities.size(); ++i)
+    else
     {
-        cumulative += probabilities[i];
-        if (r <= cumulative)
+        r = static_cast<double>(rand()) / RAND_MAX;
+        double cumulative = 0.0;
+        std::vector<double> reversed_probabilities(probabilities.size());
+
+        // Step 1: Compute reversed probabilities
+        double max_prob = *std::max_element(probabilities.begin(), probabilities.end());
+        for (size_t i = 0; i < probabilities.size(); ++i)
         {
-            return {static_cast<int>(i)}; // Return the chosen action index
+            reversed_probabilities[i] = max_prob - probabilities[i]; // Flip probability importance
         }
+
+        // Step 2: Normalize to sum to 1
+        double sum_reversed = std::accumulate(reversed_probabilities.begin(), reversed_probabilities.end(), 0.0);
+        for (double &p : reversed_probabilities)
+        {
+            p /= (sum_reversed + 1e-10); // Normalize (avoid division by zero)
+        }
+
+        // Step 3: Sample action using the reversed probabilities
+        for (size_t i = 0; i < reversed_probabilities.size(); ++i)
+        {
+            cumulative += reversed_probabilities[i];
+            if (r <= cumulative)
+            {
+                return {static_cast<int>(i) % 2 + 2}; // Return the chosen action index
+            }
+        }
+
+        return {static_cast<int>(reversed_probabilities.size() - 1)}; // Fallback action for floating point error
     }
-    return {static_cast<int>(probabilities.size() - 1)}; // Fallback action
 }
 
 // 🎯 Computes Advantage using Generalized Advantage Estimation (GAE)
-double Agent::computeAdvantage(const std::vector<double> &rewards,
-                               const std::vector<double> &values,
-                               const std::vector<double> &next_values,
-                               const std::vector<bool> &dones)
+std::vector<double> Agent::computeAdvantage(const std::vector<double> &rewards,
+                                            const std::vector<double> &values,
+                                            const std::vector<double> &next_values,
+                                            const std::vector<bool> &dones)
 {
-    double advantage = 0.0;
-    for (int p = 0; p < config::NUM_PLAYERS_PER_TEAM; ++p)
+    std::vector<double> advantages(rewards.size(), 0.0);
+    double gae = 0.0;
+
+    for (int t = rewards.size() - 1; t >= 0; --t)
     {
-        double gae = 0.0;
-        for (int t = rewards.size() - 1 - p; t >= 0; t -= config::NUM_PLAYERS_PER_TEAM)
-        {
-            double delta = rewards[t] + (dones[t] ? 0.0 : gamma * next_values[t]) - values[t];
-            // std::cout << "TD Residual delta: " << delta << std::endl;
-            gae = delta + gamma * lambda * (dones[t] ? 0.0 : gae);
-            advantage += gae;
-        }
+        // double delta = rewards[t] + (dones[t] ? 0.0 : gamma * next_values[t]) - values[t];
+        // gae = delta + gamma * lambda * (dones[t] ? 0.0 : gae);
+        // advantages[t] = gae; // Store per-time-step advantage
+        double next_advantage = (t == rewards.size() - 1) ? 0.0 : advantages[t + 1];
+        double delta = rewards[t] + (dones[t] ? 0.0 : gamma * next_values[t]) - values[t];
+        advantages[t] = delta + gamma * lambda * (dones[t] ? 0.0 : next_advantage);
     }
 
-    return advantage;
-}
+    // // Normalize advantage for stability (zero mean, unit variance)
+    double mean = std::accumulate(advantages.begin(), advantages.end(), 0.0) / advantages.size();
+    double variance = 0.0;
+    for (double adv : advantages)
+        variance += (adv - mean) * (adv - mean);
+    variance = std::sqrt(variance / advantages.size() + 1e-8); // Prevent division by zero
 
+    for (double &adv : advantages)
+        adv = (adv - mean) / variance; // Normalize
+
+    return advantages;
+}
 bool Agent::compare(Agent other, const std::vector<double> &input)
 {
     if (this->takeAction(input, true) != other.takeAction(input, true))
@@ -505,12 +559,13 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     size_t batch_size = states.size();
     time_step++;
     std::cout << time_step << std::endl;
-    if (time_step > 100 && time_step % 15 == 0) // Start decay after 200 steps
+    if (time_step > 400 && time_step % 50 == 0) // Start decay after 100 steps
     {
-        epsilon = std::max(0.01, epsilon * 0.9);
-        std::cout << time_step << " reduce the randomness " << epsilon << std::endl;
-        std::cout << "increase the future value " << gamma << std::endl;
-        gamma = std::min(0.8, gamma * 1.2); // Increase gamma by 0.2 times, but cap it at 0.8
+        epsilon = std::max((time_step < 1000 ? 0.5 : 0.1), epsilon * 0.9);
+        lambda = std::min(0.8, lambda * 1.2); // Increase gamma by 1.4 times, but cap it at 0.95
+
+        // gamma = std::min(0.95, gamma * 1.4); // Increase gamma by 1.4 times, but cap it at 0.95
+        gamma = std::min(0.9, gamma + (0.9 - gamma) * 0.4);
     }
     // Compute value predictions
     std::vector<std::vector<double>> values_batch = valueNetwork.forward(states);
@@ -522,46 +577,69 @@ void Agent::update(const std::vector<std::vector<double>> &states,
         values[i] = values_batch[i][0];
         next_values[i] = next_values_batch[i][0];
     }
-    double advantage = computeAdvantage(rewards, values, next_values, dones) / batch_size * 2;
-    printf("advantage of GAE: %lf\n", advantage);
+    auto advantages = computeAdvantage(rewards, values, next_values, dones);
+    printf("advantage of GAE: %lf\n", advantages.back());
     // Compute Policy Loss (Negative Advantage * log probability)
     std::vector<std::vector<double>> policy_outputs = policyNetwork.forward(states);
 
     std::vector<std::vector<double>> policy_gradients(batch_size, std::vector<double>(policy_outputs[0].size(), 0.0));
 
+    double gradient, entropy;
     for (size_t i = 0; i < batch_size; ++i)
     {
+        entropy = 0.0;
         int action = actions[i];
-        double sum = std::accumulate(policy_outputs[i].begin(), policy_outputs[i].end(), 0.0);
-        double prob, entropy;
-        if (sum > 0)
+        std::vector<double> softmax_probs = policy_outputs[i]; // Copy original outputs
+        double sum_exp = 0.0;
+        double max_prob = *std::max_element(softmax_probs.begin(), softmax_probs.end());
+
+        for (double &p : softmax_probs)
         {
-            for (double &p : policy_outputs[i])
+            p = exp(p - max_prob);
+            sum_exp += p;
+        }
+
+        for (double &p : softmax_probs)
+        {
+            p /= (sum_exp + 1e-10); // Prevent division by zero
+            entropy += -p * log(p + 1e-10);
+        }
+
+        // Compute gradient
+        // std::cout << "gradient in batch: " << i << " " << gradient << " ";
+        if (time_step < 1000 or true)
+        {
+            for (size_t j = 0; j < softmax_probs.size(); ++j)
             {
-                p /= sum;
-                entropy += -p * log(p + 1e-9);
+                if (j != action)
+                {
+                    gradient = -advantages[i] * log(softmax_probs[j] + 1e-8);
+                    policy_gradients[i][j] = -gradient / 10.0;
+                }
+                else
+                {
+                    gradient = -advantages[i] * log(softmax_probs[action] + 1e-8);
+                    policy_gradients[i][action] = gradient - (time_step < 2000 ? 0.01 : 0.001) * entropy;
+                }
             }
-            prob = policy_outputs[i][action];
         }
-        else
-        {
-            prob = 1.0 / policy_outputs[i].size(); // Assign uniform probability if sum is 0
-        }
-        double gradient = -advantage * log(prob + 1e-8) - entropy; // Fix: Use log probability
-
-        // Clip gradients to prevent instability
-        gradient = std::max(std::min(gradient, 10.0), -10.0);
-        policy_gradients[i][action] = gradient;
+        // else
+        // {
+        //     gradient = -advantages[i] * log(softmax_probs[action] + 1e-8);
+        //     policy_gradients[i][action] = 2 * gradient - (time_step < 2000 ? 0.001 : 0) * entropy;
+        // }
     }
-
+    // std::cout << std::endl;
     // Compute Value Loss (Mean Squared Error)
     double target;
     std::cout << "gamma: " << gamma << std::endl;
+    std::cout << "epsilon: " << epsilon << std::endl;
+
     std::vector<std::vector<double>> value_gradients(batch_size, std::vector<double>(1, 0.0));
     for (size_t i = 0; i < batch_size; ++i)
     {
         target = rewards[i] + gamma * next_values[i] * (1 - dones[i]);
-        value_gradients[i][0] = 2.0 * (values[i] - target);
+        value_gradients[i][0] = 2.0 * (values[i] - target) * (gamma < 0.4 ? 1 : 0.099);
     }
 
     // Print policy gradients for debugging
@@ -596,9 +674,9 @@ void Agent::update(const std::vector<std::vector<double>> &states,
     // std::cout << "policy backward\n";
     policyNetwork.backward(states, policy_gradients);
     // std::cout << "valuation backward\n";
-    valueNetwork.backward(states, value_gradients);
-    // if (time_step < 30)
-    // {
-    //     valueNetwork.backward(states, value_gradients);
-    // }
+    // valueNetwork.backward(states, value_gradients);
+    if (time_step < 1000)
+    {
+        valueNetwork.backward(states, value_gradients);
+    }
 }

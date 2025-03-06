@@ -181,42 +181,54 @@ void Team::move(SDL_FPoint ball)
     const double Y_max = config::BORDER.h + config::BORDER.y;
     // std::cout << "team1\n";
     std::vector<double> env(num * 4 + 2);
-    env[num * 4] = (ball.x - X_min) / (X_max - X_min);
-    env[num * 4 + 1] = (ball.y - Y_min) / (Y_max - Y_min);
-    int idx = 0;
-    for (int i = 0; i < num; i++)
+
+    for (int agent_idx = 0; agent_idx < num; agent_idx++)
     {
-        env[2 * i + num] = (team2[i].get_rect().x - X_min) / (X_max - X_min);
-        env[2 * i + num] = (team2[i].get_rect().y - Y_min) / (Y_max - Y_min);
-    }
-    for (auto &player : team1)
-    {
+        auto &player = team1[agent_idx];
+        double agent_x = player.get_rect().x;
+        double agent_y = player.get_rect().y;
+
+        // Normalize and set ball position **relative** to the agent
+        env[num * 4] = ((ball.x - agent_x) / (X_max - X_min));
+        env[num * 4 + 1] = ((ball.y - agent_y) / (Y_max - Y_min));
+
+        // Encode teammates' positions **relative** to the agent
+        int idx = 0;
         for (int i = 0; i < num; ++i)
         {
-            // num 3 idx = 1
-            // 2 3 1
-            // 3 + 0 - 1 = 2
-            // 3 + 1 - 1 = 3 -> 0
-            // 3 + 2 - 1 = 4 -> 1
-            env[2 * i] = (team1[(num + i - idx) % num].get_rect().x - X_min) / (X_max - X_min);
-            env[2 * i + 1] = (team1[(num + i - idx) % num].get_rect().y - Y_min) / (Y_max - Y_min);
+            if (i == agent_idx)
+                continue; // Skip the current agent (self)
+
+            env[2 * idx] = ((team1[i].get_rect().x - agent_x) / (X_max - X_min));     // Relative X
+            env[2 * idx + 1] = ((team1[i].get_rect().y - agent_y) / (Y_max - Y_min)); // Relative Y
+            idx++;
         }
+
+        // Encode opponents' positions **relative** to the agent
+        for (int i = 0; i < num; ++i)
+        {
+            env[2 * i + num] = ((team2[i].get_rect().x - agent_x) / (X_max - X_min));     // Relative X
+            env[2 * i + num + 1] = ((team2[i].get_rect().y - agent_y) / (Y_max - Y_min)); // Relative Y
+        }
+
         states.push_back(env);
         next_states.push_back(env);
-        if ((abs(current_p1->get_vel().x) >= 1e-5 or abs(current_p1->get_vel().y) >= 1e-5) and current_p1 == &player)
+        if (current_p1 == &player && (abs(player.get_vel().x) >= 1e-5 || abs(player.get_vel().y) >= 1e-5))
         {
-            // player.getAgent().policyNetwork.printWeights();
+            // You are controlling this player manually
             actions.push_back(rand() % 4);
         }
         else
         {
+            // Select an action based on the updated input
             std::vector<int> action = player.getAgent().takeAction(env);
             auto self_reward = player.getAgent().takeValue(env);
 
-            std::cout << "self_rewards: " << self_reward[0] << " ";
+            // std::cout << "self_rewards: " << self_reward[0] << " ";
             int move_action = static_cast<int>(action[0]);
             actions.push_back(move_action);
-            std::cout << "act1: " << move_action << " ";
+            // std::cout << "act1: " << move_action << " ";
+
             switch (move_action)
             {
             case 0:
@@ -233,40 +245,58 @@ void Team::move(SDL_FPoint ball)
                 break;
             }
         }
-        idx++;
         player.move();
     }
     std::cout << "\n";
 
     // std::cout << "team2\n";
-    idx = 0;
-    for (int i = 0; i < num; ++i)
+    for (int agent_idx = 0; agent_idx < num; agent_idx++)
     {
-        env[2 * i] = (team1[i].get_rect().x - X_min) / (X_max - X_min);
-        env[2 * i + 1] = (team1[i].get_rect().y - Y_min) / (Y_max - Y_min);
-    }
-    for (auto &player : team2)
-    {
+        auto &player = team2[agent_idx];
+        double agent_x = player.get_rect().x;
+        double agent_y = player.get_rect().y;
+
+        // Normalize and set ball position **relative** to the agent
+        env[num * 4] = ((ball.x - agent_x) / (X_max - X_min));
+        env[num * 4 + 1] = ((ball.y - agent_y) / (Y_max - Y_min));
+
+        // Encode teammates' positions **relative** to the agent
+        int idx = 0;
         for (int i = 0; i < num; ++i)
         {
-            env[2 * i + num] = (team2[(num + i - idx) % num].get_rect().x - X_min) / (X_max - X_min);
-            env[2 * i + num + 1] = (team2[(num + i - idx) % num].get_rect().y - Y_min) / (Y_max - Y_min);
+            if (i == agent_idx)
+                continue; // Skip the current agent (self)
+
+            env[2 * idx] = ((team2[i].get_rect().x - agent_x) / (X_max - X_min));     // Relative X
+            env[2 * idx + 1] = ((team2[i].get_rect().y - agent_y) / (Y_max - Y_min)); // Relative Y
+            idx++;
         }
+
+        // Encode opponents' positions **relative** to the agent
+        for (int i = 0; i < num; ++i)
+        {
+            env[2 * i + num] = ((team1[i].get_rect().x - agent_x) / (X_max - X_min));     // Relative X
+            env[2 * i + num + 1] = ((team1[i].get_rect().y - agent_y) / (Y_max - Y_min)); // Relative Y
+        }
+
         states.push_back(env);
         next_states.push_back(env);
-        if ((abs(current_p2->get_vel().x) >= 1e-5 or abs(current_p2->get_vel().y) >= 1e-5) and current_p2 == &player)
+        if (current_p2 == &player && (abs(player.get_vel().x) >= 1e-5 || abs(player.get_vel().y) >= 1e-5))
         {
+            // You are controlling this player manually
             actions.push_back(rand() % 4);
         }
         else
         {
-
+            // Select an action based on the updated input
             std::vector<int> action = player.getAgent().takeAction(env);
             auto self_reward = player.getAgent().takeValue(env);
-            std::cout << "self_rewards: " << self_reward[0] << " ";
+
+            // std::cout << "self_rewards: " << self_reward[0] << " ";
             int move_action = static_cast<int>(action[0]);
             actions.push_back(move_action);
-            std::cout << "act2: " << move_action << " ";
+            // std::cout << "act2: " << move_action << " ";
+
             switch (move_action)
             {
             case 0:
@@ -283,7 +313,6 @@ void Team::move(SDL_FPoint ball)
                 break;
             }
         }
-        idx++;
 
         player.move();
     }
@@ -362,13 +391,15 @@ void Team::get_reward(double reward)
 
 void Team::train()
 {
-    if (states.size() < 200 * 2 * num)
+    if (states.size() < 5 * 2 * num)
         return;
-    next_states.erase(next_states.end() - 2 * num, next_states.end());
-    states.erase(states.begin(), states.begin() + 2 * num);
-    rewards.erase(rewards.begin(), rewards.begin() + 2 * num);
-    dones.erase(dones.begin(), dones.begin() + 2 * num);
-    actions.erase(actions.begin(), actions.begin() + 2 * num);
+    int future_moves = 1;
+
+    states.erase(states.end() - 2 * num * future_moves, states.end());
+    next_states.erase(next_states.begin(), next_states.begin() + 2 * num * future_moves);
+    rewards.erase(rewards.begin(), rewards.begin() + 2 * num * future_moves);
+    dones.erase(dones.begin(), dones.begin() + 2 * num * future_moves);
+    actions.erase(actions.begin(), actions.begin() + 2 * num * future_moves);
     // printf("States size: %zu\n", states.size());
     // printf("Next states size: %zu\n", next_states.size());
     // printf("Rewards size: %zu\n", rewards.size());
@@ -385,7 +416,6 @@ void Team::train()
         d d d d d    d d d d d
 
     */
-
     int num_players = 2 * num;
     size_t total_samples = states.size(); // Should be a multiple of num_players
     std::vector<std::vector<std::vector<double>>> states_team1(num), states_team2(num);
@@ -541,12 +571,12 @@ double Team::closest(SDL_FPoint ball)
     std::sort(&arr2[0], &arr2[num]);
 
     int count = 0;
-    for (int i = 0; i < std::min(num - 1, 2); ++i)
+    for (int i = 0; i < std::min(num - 1, 3); ++i)
     {
         if (arr1[i] < 7000)
-            count += 2;
+            count += 3;
         if (arr2[i] < 7000)
-            count -= 2;
+            count -= 3;
     }
     for (int i = 0, j = 0; i + j < num;)
     {

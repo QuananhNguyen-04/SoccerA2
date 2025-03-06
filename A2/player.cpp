@@ -9,11 +9,6 @@ Player::Player(): agent({1,2,1}, {1,2,1}) {
 
 Player::Player(bool team, const std::vector<int>& layers, const std::vector<int>& vlayers ) : team(team), vx(0), vy(0), agent(layers, vlayers)
 {
-    std::cout << "vlayers shape: ";
-    for (const auto &layer : vlayers)
-    {
-        std::cout << layer << " ";
-    }
     std::cout << std::endl;
     rect = SDL_Rect{100, 100, config::PLAYER_WIDTH, config::PLAYER_HEIGHT}; // Example size
     df = config::PLAYER_DAMPING_FACTOR;
@@ -150,11 +145,12 @@ std::vector<Player> PlayerFactory::create(int num, bool team)
     int input = config::NUM_PLAYERS_PER_TEAM * 2 * 2 + 2; // coordination of each player and ball
     int output = 4; // moving and kick
     std::vector<Player> players;
-    std::vector<int> layers(4);
+    std::vector<int> layers(5);
     layers[0] = input;
-    layers[1] = 256;
+    layers[1] = 128;
     layers[2] = 64;
-    layers[3] = output;
+    layers[3] = 8;
+    layers[4] = output;
     auto vlayers = layers;
     vlayers.back() = 1;
     int padding = (config::BORDER.h - 100) / config::NUM_PLAYERS_PER_TEAM;

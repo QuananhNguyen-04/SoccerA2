@@ -95,6 +95,8 @@ void Background::draw(uint32_t current_time)
     SDL_Rect right_goal = {config::GOAL_RIGHT_X, config::GOAL_TOP_Y, config::GOAL_DEPTH, config::GOAL_WIDTH};
     draw_thick_line(left_goal, 5);
     draw_thick_line(right_goal, 5);
+    std::cout << "Hello draw\n";
+
 }
 
 void Background::update_score_home() // home scoring

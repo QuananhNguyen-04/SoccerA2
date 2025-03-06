@@ -66,16 +66,19 @@ int Game::run()
     SDL_Event event;
     uint32_t last_frame_time = 0, current_frame_time = 0, delta_time = 0, switch_delay = 100;
     uint32_t last_action_1 = 0, last_action_2 = 0, last_switch_1 = 0, last_switch_2 = 0, kick_timing_1 = 0, kick_timing_2 = 0;
-    uint64_t game_timer = 60 * 1000;
+    game_timer = 30 * 1000;
+    bool changeInit = false;
+    teams.init_pos(false);
     while (!done)
     {
         if (SDL_GetTicks64() > game_timer)
         {
-            // SDL_Delay(1000);
+            SDL_Delay(1000);
             bg.reset_layout();
-            teams.train();
-            teams.init_pos(rand() % 2 == 0);
-            game_timer = SDL_GetTicks64() + 61 * 1000; // Reset the timer after training
+            // teams.train();
+            teams.init_pos(!changeInit);
+            changeInit = !changeInit;
+            // game_timer = SDL_GetTicks64() + 31 * 1000; // Reset the timer after training
         }
         while (SDL_PollEvent(&event))
         {
@@ -211,21 +214,24 @@ int Game::run()
                 last_frame_time = current_frame_time;
                 teams.move(ball.get_pos());
                 ball.move(config::BORDER, teams.get_rect_list());
-                // printf("FPS: %d\n", 1000 / delta_time);
+                printf("FPS: %d\n", 1000 / delta_time);
                 auto result = ball.scoring();
+                double reward = 0;
                 if (result != -1)
                 {
                     if (result == 1)
                     {
-                        teams.get_reward(1000.0);
+                        // teams.get_reward(1000.0);
                         bg.update_score_home();
                         teams.init_pos(true);
+                        reward = 10.0;
                     }
                     else if (result == 0)
                     {
-                        teams.get_reward(-1000.0);
+                        // teams.get_reward(-1000.0);
                         bg.update_score_away();
                         teams.init_pos(false);
+                        reward = -10.0;
                     }
                 }
                 else
@@ -233,15 +239,18 @@ int Game::run()
                     // std::cout << ball.get_pos().x << " " << ball.get_pos().y << "\n";
                     // std::cout << (ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) << "\n";
                     // std::cout << (400 - (abs(ball.get_pos().y - (config::GOAL_BOTTOM_Y - config::GOAL_TOP_Y) / 2 - config::GOAL_TOP_Y))) << "\n";
-                    double reward = (ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) // 600 max
+                    reward = (ball.get_pos().x - ((config::GOAL_RIGHT_X - config::GOAL_LEFT_X) / 2 + config::BORDER.x)) // 600 max
                                     *
-                                    (1.0 / 950);
-
-                    auto good_pos = teams.closest(ball.get_pos()) / 20.0;
+                                    (0.8 / 950);
+                    if (ball.get_pos().x > config::GOAL_RIGHT_X - config::BALL_RADIUS) 
+                        reward = 1.1;
+                    else if (ball.get_pos().x < config::GOAL_LEFT_X + config::BALL_RADIUS)
+                        reward = -1.1;
+                    auto good_pos = teams.closest(ball.get_pos()) * (0.2 / 15.0);
                     reward += good_pos;
                     std::cout << "good pos contribute: " << good_pos << "reward: " << reward << std::endl;
-                    teams.get_reward(reward);
                 }
+                // teams.get_reward(reward);
                 std::cout << "=================================\n";
                 if (current_frame_time - kick_timing_1 > 500)
                 {
@@ -251,13 +260,13 @@ int Game::run()
                 {
                     teams.reset_after_timing(false);
                 }
-                teams.train();
+                // teams.train();
             }
         this->draw(last_frame_time, drawing);
     }
     SDL_DestroyWindow(m_window);
     SDL_Quit();
-    teams.save_weights();
+    // teams.save_weights();
     return EXIT_SUCCESS;
 }
 
@@ -266,8 +275,8 @@ void Game::draw(uint32_t last_time_frame, bool drawing)
     if (!drawing)
         return;
     static uint32_t last_time = 0;
-    uint32_t current_time = SDL_GetTicks();
-    bg.draw(current_time);
+    uint32_t current_time = SDL_GetTicks64();
+    bg.draw(current_time % (30 * 1000));
     teams.draw(m_renderer);
     if (last_time_frame - last_time > 1000 / 30)
     {

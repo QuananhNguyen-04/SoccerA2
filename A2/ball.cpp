@@ -137,7 +137,7 @@ void Ball::move(const SDL_Rect &fieldBounds, const std::vector<std::pair<SDL_Rec
     // printf("Ball later posx: %d, posy: %d\n", pos.x, pos.y);
     // Update position based on velocity and apply damping
 
-    apply_friction(vx, vy, d_factor);
+    apply_friction(vx, vy, max_speed == config::BALL_SPEED? d_factor: config::KICK_DAMPING_FACTOR);
 }
 
 bool Ball::goal_checking()

@@ -23,6 +23,7 @@ private:
     SDL_Surface *m_surface;
     Ball ball;
     Team teams;
+    uint64_t game_timer;
     bool is_error;
 public:
     Game(/* args */);

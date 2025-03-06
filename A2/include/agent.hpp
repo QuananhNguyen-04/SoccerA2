@@ -44,7 +44,7 @@ private:
     double leakyReluDerivative(double x) const;
 
 public:
-    explicit NeuralNetwork(const std::vector<int> &layers, std::string activator);
+    explicit NeuralNetwork(const std::vector<int> &layers, std::string activator, double lr);
     std::vector<std::vector<double>> forward(const std::vector<std::vector<double>> &input);
     void backward(const std::vector<std::vector<double>> &inputs, const std::vector<std::vector<double>> &gradients);
     void printWeights() const;
@@ -63,10 +63,10 @@ private:
 public:
     NeuralNetwork policyNetwork;
     NeuralNetwork valueNetwork;
-    explicit Agent(const std::vector<int> &layers, const std::vector<int> &vlayers, double gamma = 0.1, double lambda = 0.95);
+    explicit Agent(const std::vector<int> &layers, const std::vector<int> &vlayers, double gamma = 0.1, double lambda = 0.2);
     std::vector<int> takeAction(const std::vector<double> &input, bool on_policy = false);
     void update(const std::vector<std::vector<double>> &states, const std::vector<double> &rewards, const std::vector<std::vector<double>> &next_states, const std::vector<bool> &dones, const std::vector<int> &actions);
-    double computeAdvantage(const std::vector<double> &rewards, const std::vector<double> &values, const std::vector<double> &next_values, const std::vector<bool> &dones);
+    std::vector<double> computeAdvantage(const std::vector<double> &rewards, const std::vector<double> &values, const std::vector<double> &next_values, const std::vector<bool> &dones);
     bool compare(Agent other, const std::vector<double> &input);
     void saveWeights(std::string filename);
     void loadWeights(std::string filename);

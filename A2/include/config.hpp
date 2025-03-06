@@ -19,8 +19,8 @@ namespace config {
     const SDL_Color BLUE = {0, 0, 255, 255}; // Light gray
 
     // Player properties
-    const int PLAYER_WIDTH = 20;
-    const int PLAYER_HEIGHT = 40;
+    const int PLAYER_WIDTH = 10;
+    const int PLAYER_HEIGHT = 30;
     const int DRAW_PLAYER_WIDTH = 30;
     const int DRAW_PLAYER_HEIGHT = 60;
     const SDL_Color HomeColor = RED;
@@ -31,6 +31,7 @@ namespace config {
     const int BALL_SS_WIDTH = 32;
     const int BALL_SS_HEIGHT = 32;
     const float BALL_DAMPING_FACTOR = 0.96f; // Damping factor for the ball's velocity
+    const float KICK_DAMPING_FACTOR = 0.98f; // Damping factor for the ball's velocity
     const float PLAYER_DAMPING_FACTOR = 0.0f; // Damping factor for the player's velocity
     extern std::string BALLSPRITE_PATH;
     // Kicking and passing speeds
@@ -63,7 +64,7 @@ namespace config {
     const int SS_WIDTH = 32;
     const int SS_HEIGHT = 50;
     extern std::string PLAYERSPRITE_PATH;
-
+    extern double GAMMA_RL;
 } // namespace config
 
 #endif // CONFIG_HPP
